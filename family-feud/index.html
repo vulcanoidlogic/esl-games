@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Class Feud</title>
+<style>
+:root{--bg:#17352d;--panel:#214a3f;--line:#3a6b5c;--chalk:#f4f1e8;--dim:#a9c4b9;--a:#f2b134;--b:#5ec2d6;--bad:#e2574c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--chalk);font-family:"Avenir Next","Segoe UI",Roboto,sans-serif}
+button{font:inherit;cursor:pointer;border:2px solid var(--line);background:var(--panel);color:var(--chalk);border-radius:8px;padding:.5em .9em}
+button:hover{border-color:var(--chalk)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.A{--c:var(--a)}.B{--c:var(--b)}
+/* ---------- BOARD ---------- */
+#board{display:none;height:100vh;padding:2vh 2.5vw;flex-direction:column;gap:2vh;overflow:hidden}
+.top{display:grid;grid-template-columns:1fr auto 1fr;gap:2vw;align-items:stretch}
+.tm{border:.4vh solid var(--c);border-radius:1.2vh;padding:1.2vh 1.5vw;text-align:center;opacity:.55;transition:.3s}
+.tm.on{opacity:1;background:var(--panel);box-shadow:0 0 0 .6vh var(--c)}
+.tm h2{margin:0;font-size:3.2vh;color:var(--c)}
+.tm .sc{font-size:8vh;font-weight:800;line-height:1}
+.tm .sp{font-size:2.6vh;color:var(--dim);min-height:3.2vh}
+.tm.on .sp{color:var(--chalk)}
+.mid{text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:16vw}
+.bank{font-size:7vh;font-weight:800;color:var(--chalk)}
+.bank small{display:block;font-size:2.4vh;font-weight:500;color:var(--dim)}
+.tmr{font-size:5vh;font-weight:800;min-height:6vh;color:var(--a)}
+.q{font-size:5.2vh;font-weight:700;text-align:center;line-height:1.2;padding:1vh 2vw}
+.grid{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;grid-template-rows:repeat(4,1fr);gap:1.4vh 1.5vw;min-height:0}
+.slot{border:.3vh solid var(--line);border-radius:1.2vh;display:flex;align-items:center;justify-content:space-between;padding:0 1.5vw;font-size:4.2vh;font-weight:700;background:rgba(0,0,0,.18)}
+.slot .n{width:5vh;height:5vh;border-radius:50%;background:var(--line);display:grid;place-items:center;font-size:3vh}
+.slot.open{background:var(--panel);border-color:var(--chalk);animation:pop .45s}
+.slot.open .n{display:none}
+.slot .p{color:var(--a);min-width:8vh;text-align:right}
+.slot .t{flex:1;padding-left:.5vw}
+.slot:not(.open) .t,.slot:not(.open) .p{display:none}
+.slot:not(.open){justify-content:center}
+@keyframes pop{0%{transform:rotateX(90deg)}100%{transform:none}}
+#x{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);font-size:34vh;color:var(--bad);font-weight:900;text-shadow:0 0 3vh #000;letter-spacing:2vw}
+#x.show{display:grid}
+.stk{text-align:center;font-size:4vh;color:var(--bad);min-height:5vh;letter-spacing:.6vw}
+/* ---------- CONTROL ---------- */
+#ctl{display:none;max-width:1100px;margin:0 auto;padding:16px}
+#ctl h1{margin:0 0 4px;font-size:28px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tc{border:3px solid var(--c);border-radius:12px;padding:10px;background:var(--panel)}
+.tc.on{box-shadow:0 0 0 4px var(--c)}
+.tc b{color:var(--c);font-size:20px}
+.tc .sc{font-size:40px;font-weight:800}
+.ans{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin:6px 0}
+.ans.done button{opacity:.45}
+.ans .pt{color:var(--a);font-weight:700}
+input,textarea,select{font:inherit;background:#10261f;color:var(--chalk);border:2px solid var(--line);border-radius:8px;padding:8px;width:100%}
+textarea{min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px}
+input.say{font-size:20px}
+.big{font-size:18px;padding:.6em 1em}
+.go{background:var(--a);color:#1b1b1b;border-color:var(--a);font-weight:700}
+.bad{border-color:var(--bad);color:#ffb3ac}
+.hint{color:var(--dim);font-size:14px}
+.A .go{background:var(--a);border-color:var(--a)}.B .go{background:var(--b);border-color:var(--b)}
+.qline{font-size:22px;font-weight:700}
+@media(max-width:700px){.teams{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.slot.open{animation:none}}
+</style>
+</head>
+<body>
+
+<!-- BOARD: shown on the smart board. Display only. -->
+<div id="board">
+  <div class="top">
+    <div class="tm A" id="t0"></div>
+    <div class="mid"><div class="tmr" id="tmr"></div><div class="bank" id="bank"></div></div>
+    <div class="tm B" id="t1"></div>
+  </div>
+  <div class="q" id="bq"></div>
+  <div class="grid" id="bg"></div>
+  <div class="stk" id="stk"></div>
+  <div id="x" aria-hidden="true"></div>
+</div>
+
+<!-- CONTROL: teacher laptop -->
+<div id="ctl">
+  <h1>Class Feud</h1>
+  <div class="hint">You run this screen. Students watch the board window. Nobody needs to touch the board.</div>
+  <div class="row">
+    <button class="go" id="openBoard">Open board window</button>
+    <button id="fs" title="Click inside the board window, then press F11 or use browser full screen">How to full-screen</button>
+    <button id="setupBtn">Setup: teams &amp; questions</button>
+  </div>
+
+  <div class="teams" id="teams"></div>
+
+  <div class="card">
+    <div class="hint" id="qn"></div>
+    <div class="qline" id="cq"></div>
+    <div class="row">
+      <button id="speak">🔊 Read question</button>
+      <button id="huddle">⏱ 30s huddle</button>
+      <button id="huddleStop">Stop timer</button>
+      <label>Points ×<select id="mult" style="width:auto"><option>1</option><option>2</option><option>3</option></select></label>
+      <label>Playing:<select id="play" style="width:auto"></select></label>
+    </div>
+    <div class="row">
+      <input class="say" id="say" placeholder="Type what the speaker said, press Enter" autocomplete="off" style="flex:1;min-width:240px">
+      <button class="big bad" id="strike">✖ Strike</button>
+    </div>
+    <div class="hint">Enter = match against the answers (a match reveals, no match gives a strike). Click any answer below to reveal it by hand. Accept good alternatives by clicking.</div>
+    <div id="alist"></div>
+    <div class="row">
+      <button id="revAll">Reveal all</button>
+      <span style="flex:1"></span>
+      <b>Bank: <span id="cbank">0</span></b>
+      <button class="big go" id="awA"></button>
+      <button class="big go" id="awB"></button>
+    </div>
+    <div class="row">
+      <button id="bnA"></button><button id="bnB"></button>
+      <span class="hint">Bonus +10 when every teammate spoke this round.</span>
+      <span style="flex:1"></span>
+      <button class="big" id="prev">← Back</button>
+      <button class="big go" id="next">Next question →</button>
+    </div>
+  </div>
+
+  <div class="card" id="setup" style="display:none">
+    <b>Team names</b>
+    <div class="row"><input id="n0" placeholder="Team 1 name"><input id="n1" placeholder="Team 2 name"></div>
+    <b>Players (one per line, speakers rotate in this order)</b>
+    <div class="row" style="align-items:stretch"><textarea id="r0"></textarea><textarea id="r1"></textarea></div>
+    <b>Questions</b>
+    <div class="hint">Question on the first line, then one answer per line as <code>answer = points</code>. Use <code>|</code> for alternate spellings, like <code>brush teeth|brush my teeth = 30</code>. Leave a blank line between questions.</div>
+    <textarea id="qtxt" style="min-height:300px"></textarea>
+    <div class="row"><button class="go" id="apply">Save and restart game</button><button class="bad" id="reset">Reset to defaults</button></div>
+  </div>
+</div>
+
+<script>
+const K='classfeud.v1';
+const DEFAULT_Q=`Name something you do in the morning.
+eat breakfast|have breakfast|eat = 30
+brush teeth|brush my teeth = 25
+take a shower|shower = 20
+get dressed|get dress = 12
+drink coffee|coffee = 8
+go to work|work = 5
+
+Name a place you go on the weekend.
+park = 30
+store|shopping|market = 25
+church = 15
+restaurant|eat out = 12
+friend's house|friends house|visit friends = 10
+library = 8
+
+Name something you can find in a kitchen.
+refrigerator|fridge = 28
+stove|oven = 24
+sink = 18
+table = 12
+microwave = 10
+knife|knives = 8
+
+Name a job that helps people.
+doctor = 30
+nurse = 22
+teacher = 18
+firefighter|fireman = 14
+police officer|police|policeman = 10
+driver = 6
+
+Name something people do at a party.
+dance|dancing = 30
+eat|eat food = 24
+talk|talking = 18
+sing|karaoke = 12
+drink = 10
+play games|games = 6
+
+Name something you wear when it is cold.
+coat|jacket = 32
+gloves|glove = 22
+hat = 18
+scarf = 14
+boots|boot = 8
+sweater = 6
+
+Name a reason people are late for work.
+traffic = 35
+overslept|sleep|wake up late|alarm = 25
+car problem|car trouble|car = 15
+sick|illness = 12
+bus = 8
+weather|snow|rain = 5
+
+Name something you do at the doctor's office.
+wait|waiting = 30
+fill out forms|forms|paperwork = 22
+get a checkup|checkup|exam = 18
+take medicine|medicine = 12
+weigh|weight|scale = 10
+pay = 8`;
+
+const clone=o=>JSON.parse(JSON.stringify(o));
+const fresh=()=>({teams:[{name:'Team Sun',score:0,roster:['Player 1','Player 2','Player 3','Player 4','Player 5','Player 6','Player 7']},{name:'Team Sky',score:0,roster:['Player 8','Player 9','Player 10','Player 11','Player 12','Player 13','Player 14']}],qtxt:DEFAULT_Q,qi:0,rev:[],strikes:0,bank:0,play:0,mult:1,spk:[0,0],huddleEnd:0,strikeAt:0});
+let S;try{S=JSON.parse(localStorage.getItem(K))||fresh()}catch(e){S=fresh()}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function parse(t){return t.trim().split(/\n\s*\n/).map(b=>{const L=b.trim().split('\n').map(s=>s.trim()).filter(Boolean);return{q:L[0],a:L.slice(1,9).map(l=>{const m=l.match(/^(.*?)\s*=\s*(\d+)\s*$/);const al=(m?m[1]:l).split('|').map(s=>s.trim());return{t:al[0],al,p:m?+m[2]:10}})}}).filter(x=>x.q&&x.a.length)}
+const Q=()=>parse(S.qtxt);
+const cur=()=>{const q=Q();return q[S.qi%q.length]};
+const speaker=t=>{const r=S.teams[t].roster;return r.length?r[S.spk[t]%r.length]:''};
+const save=()=>{localStorage.setItem(K,JSON.stringify(S))};
+
+/* ---------------- BOARD ---------------- */
+function renderBoard(){
+  const q=cur();
+  [0,1].forEach(i=>{const t=S.teams[i];const el=$('t'+i);el.className='tm '+'AB'[i]+(S.play===i?' on':'');
+    el.innerHTML=`<h2>${esc(t.name)}</h2><div class="sc">${t.score}</div><div class="sp">${S.play===i?'Speaker: '+esc(speaker(i)):''}</div>`});
+  $('bank').innerHTML=`${S.bank}<small>points this round${S.mult>1?' (×'+S.mult+')':''}</small>`;
+  $('bq').textContent=q.q;
+  $('bg').innerHTML=q.a.map((a,i)=>`<div class="slot${S.rev.includes(i)?' open':''}"><span class="n">${i+1}</span><span class="t">${esc(a.t)}</span><span class="p">${a.p*S.mult}</span></div>`).join('');
+  $('stk').textContent='✖ '.repeat(S.strikes).trim();
+  if(S.strikeAt!==lastStrike){lastStrike=S.strikeAt;if(Date.now()-S.strikeAt<3000){$('x').textContent='✖'.repeat(Math.max(1,S.strikes));$('x').className='show';setTimeout(()=>$('x').className='',1100)}}
+}
+let lastStrike=S.strikeAt;
+function tick(){const l=Math.ceil((S.huddleEnd-Date.now())/1000);$('tmr').textContent=l>0?'Huddle '+l:''}
+function startBoard(){
+  $('board').style.display='flex';document.title='Class Feud – Board';
+  renderBoard();let last=localStorage.getItem(K);
+  setInterval(()=>{const r=localStorage.getItem(K);if(r!==last){last=r;S=JSON.parse(r);renderBoard()}tick()},250);
+}
+
+/* ---------------- SOUND ---------------- */
+let ac;function beep(f,d,type='sine',when=0){try{ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;o.connect(g);g.connect(ac.destination);const t=ac.currentTime+when;g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.start(t);o.stop(t+d)}catch(e){}}
+const ding=()=>{beep(880,.25,'sine');beep(1320,.4,'sine',.12)};
+const buzz=()=>{beep(110,.6,'sawtooth')};
+const cheer=()=>[523,659,784,1047].forEach((f,i)=>beep(f,.3,'triangle',i*.12));
+
+/* ---------------- CONTROL ---------------- */
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim()}
+function reveal(i){if(S.rev.includes(i))return;const a=cur().a[i];S.rev.push(i);S.bank+=a.p*S.mult;ding();commit()}
+function strike(){S.strikes++;S.strikeAt=Date.now();buzz();commit()}
+function guess(txt){const g=norm(txt);if(!g)return;const q=cur();
+  const hit=q.a.findIndex((a,i)=>!S.rev.includes(i)&&a.al.some(x=>{x=norm(x);return x===g||(g.length>=4&&x.length>=4&&(x.includes(g)||g.includes(x)))}));
+  hit>=0?reveal(hit):strike()}
+function award(t){if(!S.bank)return;S.teams[t].score+=S.bank;S.bank=0;cheer();commit()}
+function next(d=1){const q=Q();S.spk[S.play]++;S.qi=(S.qi+d+q.length)%q.length;S.rev=[];S.strikes=0;S.bank=0;S.play=1-S.play;S.huddleEnd=0;S.mult=S.qi===q.length-1?2:1;commit()}
+function commit(){save();renderCtl()}
+
+function renderCtl(){
+  const q=cur(),n=Q().length;
+  $('teams').innerHTML=[0,1].map(i=>{const t=S.teams[i];return `<div class="tc ${'AB'[i]}${S.play===i?' on':''}"><b>${esc(t.name)}</b><div class="sc">${t.score}</div><div class="hint">Next speaker: <b>${esc(speaker(i))}</b></div><div class="row"><button data-adj="${i},-5">−5</button><button data-adj="${i},5">+5</button></div></div>`}).join('');
+  $('qn').textContent=`Question ${S.qi%n+1} of ${n}`;
+  $('cq').textContent=q.q;
+  $('alist').innerHTML=q.a.map((a,i)=>`<div class="ans${S.rev.includes(i)?' done':''}"><button data-rev="${i}" style="text-align:left">${i+1}. ${esc(a.t)}${a.al.length>1?' <span class="hint">('+esc(a.al.slice(1).join(', '))+')</span>':''}</button><span class="pt">${a.p*S.mult}</span></div>`).join('');
+  $('cbank').textContent=S.bank;
+  $('strike').textContent=`✖ Strike (${S.strikes})`;
+  $('mult').value=S.mult;
+  $('play').innerHTML=S.teams.map((t,i)=>`<option value="${i}"${S.play===i?' selected':''}>${esc(t.name)}</option>`).join('');
+  [0,1].forEach(i=>{$('aw'+'AB'[i]).textContent='Award to '+S.teams[i].name;$('aw'+'AB'[i]).parentElement.className='row '+'AB'[i];$('bn'+'AB'[i]).textContent='Bonus: '+S.teams[i].name});
+}
+function startCtl(){
+  $('ctl').style.display='block';document.title='Class Feud – Control';
+  renderCtl();
+  $('openBoard').onclick=()=>window.open(location.pathname+'#board','classfeudboard','width=1280,height=720');
+  $('fs').onclick=()=>alert('Drag the board window to the smart board screen, click once inside it, then press F11 (Windows/Linux) or Ctrl+Cmd+F (Mac). Do all your clicking in this control window.');
+  $('setupBtn').onclick=()=>{const s=$('setup');s.style.display=s.style.display==='none'?'block':'none';fillSetup()};
+  $('teams').onclick=e=>{const a=e.target.dataset.adj;if(a){const[i,d]=a.split(',').map(Number);S.teams[i].score=Math.max(0,S.teams[i].score+d);commit()}};
+  $('alist').onclick=e=>{const b=e.target.closest('[data-rev]');if(b)reveal(+b.dataset.rev)};
+  $('say').onkeydown=e=>{if(e.key==='Enter'){guess(e.target.value);e.target.value=''}};
+  $('strike').onclick=strike;
+  $('revAll').onclick=()=>{cur().a.forEach((a,i)=>{if(!S.rev.includes(i))S.rev.push(i)});ding();commit()};
+  $('awA').onclick=()=>award(0);$('awB').onclick=()=>award(1);
+  $('bnA').onclick=()=>{S.teams[0].score+=10;cheer();commit()};$('bnB').onclick=()=>{S.teams[1].score+=10;cheer();commit()};
+  $('next').onclick=()=>next(1);$('prev').onclick=()=>next(-1);
+  $('mult').onchange=e=>{S.mult=+e.target.value;commit()};
+  $('play').onchange=e=>{S.play=+e.target.value;commit()};
+  $('huddle').onclick=()=>{S.huddleEnd=Date.now()+30000;commit()};
+  $('huddleStop').onclick=()=>{S.huddleEnd=0;commit()};
+  $('speak').onclick=()=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(cur().q);u.lang='en-US';u.rate=.8;speechSynthesis.speak(u)};
+  $('apply').onclick=()=>{const t=[0,1].map(i=>({name:$('n'+i).value.trim()||'Team '+(i+1),score:0,roster:$('r'+i).value.split('\n').map(s=>s.trim()).filter(Boolean)}));
+    const txt=$('qtxt').value;if(!parse(txt).length){alert('Add at least one question with one answer.');return}
+    S={...fresh(),teams:t,qtxt:txt};commit();$('setup').style.display='none'};
+  $('reset').onclick=()=>{if(confirm('Reset teams, scores, and questions to the defaults?')){S=fresh();commit();fillSetup()}};
+}
+function fillSetup(){[0,1].forEach(i=>{$('n'+i).value=S.teams[i].name;$('r'+i).value=S.teams[i].roster.join('\n')});$('qtxt').value=S.qtxt}
+
+location.hash==='#board'?startBoard():startCtl();
+</script>
+</body>
+</html>
